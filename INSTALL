@@ -1,0 +1,23 @@
+YAML
+	apt-get install libyaml-perl
+
+Log::Log4perl
+	apt-get install liblog-log4perl-perl
+
+WWW::Mechanize
+	apt-get install libwww-mechanize-perl
+
+WWW::Mechanize::Firefox
+	Mozilla Firefox
+		apt-get install iceweasel
+	MozRepl plugin for Firefox
+		<https://github.com/bard/mozrepl/wiki/>
+		set to accept connections on startup
+		profile name: scraper
+		requires an X display at this time
+
+HTML::TreeBuilder
+	apt-get install libhtml-tree-perl
+
+File::Slurp
+	apt-get install libfile-slurp-perl

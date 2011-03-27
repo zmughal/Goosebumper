@@ -20,7 +20,6 @@ use IO::File;
 use Fcntl qw(:flock);
 
 use Module::Load;
-use Data::Dumper;
 use Carp;
 
 use constant CACHEDIR => '.gbumper';
@@ -49,6 +48,7 @@ sub start_screeching {
 		load $plugin;
 		$plugin->new($self)->screech();
 	}
+	$self->run_exit_handlers();
 }
 
 sub strip_sites {
@@ -74,6 +74,14 @@ JS
 
 	$prefs->setBoolPref("dom.disable_open_during_load", 0);
 
+	if (!$self->{config}{debug}) {
+		unless($self->{_set_mech_handler}) {
+			$self->{_set_mech_handler} = 1;
+			$self->add_exit_handler( sub {
+				$mech->repl->expr('window.close()');
+			} );
+		}
+	}
 	return $mech;
 }
 
@@ -100,7 +108,6 @@ sub read_cache {
 		die "could not lock file $cache->{file}";
 		$cache = undef;
 	}
-	print Dumper $cache;
 
 	return $cache;
 }
@@ -143,7 +150,6 @@ sub _get_save_path {
 sub download_cache {
 	my ($self, $site) = @_;
 	DEBUG "Beginning to download";
-	DEBUG Dumper $site->{cache};
 	for my $course (keys %{$site->{cache}{content}{courses}}) {
 		DEBUG "Download course $course";
 		my $down_dir = File::Spec->catfile($self->{toplevel},
@@ -158,7 +164,6 @@ sub download_cache {
 sub _download_cache_h {
 	my ($self, $site, $top, $files) = @_;
 	DEBUG "Downloading to $top";
-	DEBUG Dumper $files;
 	for my $file (@$files) {
 		DEBUG "File ", $file->{label};
 		if( $file->{files} ) {
@@ -170,15 +175,34 @@ sub _download_cache_h {
 			unless ( $file->{downloaded} ) {
 				unless ( $file->{href} =~ /\.mov$/ ) {
 					# not a video
-					my $down_mech = $site->{down_mech};
-					my $href = $file->{href};
-					DEBUG "Attempting to download: $href";
-					my $response = $down_mech->get($href);
-					if( $down_mech->success() ) {
+					my $response;
+					my $worked;
+					unless( exists $file->{response} ) {
+						# TODO: instead of assumming this exists use an interface
+						my $down_mech = $site->{down_mech};
+						my $href = $file->{href};
+						DEBUG "Attempting to download: $href";
+						$response = $down_mech->get($href);
+						$worked = $down_mech->success();
+					} else {
+						$response = $file->{response};
+						delete $file->{response};
+						$worked = defined $response;
+					}
+					if( $worked ) {
 						my $fname = $response->filename;
-						$file->{filename} = $fname;
-						if ( $down_mech->content_type() ) {
-							$file->{header}{'Content-Type'} = $down_mech->content_type;
+
+						unless ($fname) {
+							# use the filename given if can not resolve a filename
+							# (TODO: when it doesn't exist use href)
+							$fname = $file->{filename};
+						} else {
+							# store the filename
+							$file->{filename} = $fname;
+						}
+
+						if ( $response->content_type ) {
+							$file->{header}{'Content-Type'} = $response->content_type;
 						}
 						if( $response->date() )
 						{
@@ -189,15 +213,21 @@ sub _download_cache_h {
 						}
 						my $save_path = File::Spec->catfile($top, $fname);
 						eval {
-							$down_mech->save_content( $save_path );
+							open( my $fh, '>', $save_path ) or die( "Unable to create $save_path: $!" );
+							binmode $fh unless ($file->{header}{'Content-Type'} // '' ) =~ m{^text/};
+							print {$fh} $response->content or die( "Unable to write to $save_path: $!" );
+							close $fh or die( "Unable to close $save_path: $!" );
 						};
-						warn $@ if $@;
-						$file->{downloaded} = 1;
-						$file->{path} = $save_path;
-						# Read-only
-						chmod '0444', $file->{path};
+						if ($@) {
+							warn $@;
+						} else {
+							$file->{downloaded} = 1;
+							$file->{path} = $save_path;
+							# Read-only
+							chmod 0444, $file->{path};
+						}
 					} else {
-						warn "Could not download ", Dumper $file;
+						warn "Could not download ", $file->{filename};
 					}
 				}
 			}
@@ -255,6 +285,16 @@ sub _course_fname {
 	my ($self, $site) = @_;
 	$site =~ s/ /_/g;
 	return $site;
+}
+
+sub add_exit_handler {
+	my ($self, $code) = @_;
+	push @{$self->{atexit}}, $code;
+}
+
+sub run_exit_handlers {
+	my $self = shift;
+	$_->() for @{$self->{atexit}};
 }
 
 

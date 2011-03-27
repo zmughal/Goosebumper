@@ -14,6 +14,12 @@ use Data::Dumper;
 use Carp;
 
 use URI::WithBase;
+use URI::Escape;
+use File::Temp qw/ tempfile /;
+use File::Slurp;
+
+# From <https://developer.mozilla.org/en/XPCOM_Interface_Reference/nsIWebBrowserPersist>
+use constant PERSIST_STATE_FINISHED => 3;
 
 my $url = "http://blackboard.egr.uh.edu/";
 
@@ -42,9 +48,6 @@ sub screech {
 
 	$self->_login();
 
-	DEBUG "Getting cookies";
-	my $cookies = $mech->cookies();
-	$self->{down_mech} = WWW::Mechanize ->new( cookie_jar => $cookies );
 	$self->_visit_courses();
 	$sites_helper->download_cache($self);
 	$sites_helper->write_cache($self->{cache});
@@ -116,10 +119,8 @@ sub _process_course {
 			$page_find = $new_page;
 		}
 		$page_find->{files} = $self->_process_page_items($page_find->{files});
-		DEBUG Dumper $page_find;
 	}
 	$self->{cache}{content}{courses}{$course_name}{files} = $files;
-	DEBUG Dumper $self->{cache}{content}{courses}{$course_name};
 }
 
 sub _process_page_items {
@@ -127,7 +128,7 @@ sub _process_page_items {
 	my $files = shift;
 	my $mech = $self->{_mech};
 	for my $item ($mech->xpath('//img[@alt="Item"]/parent::*/following-sibling::*', frames=>1)) {
-		my $subitems = $self->_process_item($item->{innerHTML});
+		my $subitems = $self->_process_item($item->{innerHTML}, $mech->base );
 		for my $subitem (@$subitems) {
 			DEBUG "Looking at item ", $subitem->{label};
 			unless ( grep { $_->{label} eq $subitem->{label} &&
@@ -135,7 +136,7 @@ sub _process_page_items {
 					DEBUG "Adding files ", $subitem->{filename};
 					$subitem->{href} =
 						URI::WithBase->new($subitem->{href},
-							$mech->base())->abs()->as_string();
+							$mech->base )->abs->as_string();
 					push @$files, $subitem;
 				}
 		}
@@ -146,6 +147,7 @@ sub _process_page_items {
 sub _process_item {
 	my $self = shift;
 	my $html = shift;
+	my $base = shift;
 
 	my $subitems;
 	my $tb = HTML::TreeBuilder->new;
@@ -156,8 +158,29 @@ sub _process_item {
 	for my $subitem (@links) {
 		my $prop;
 		$prop->{label} = $label;
-		$prop->{filename}=$subitem->as_text();
-		$prop->{href}=$subitem->attr('href');
+		$prop->{'sub-item label'} = $subitem->as_text();
+		my $rel_href = $subitem->attr('href');
+		my $href = URI::WithBase->new($rel_href, $base)->abs();
+		$prop->{href} = $href->as_string;
+
+		my @path_seg = $href->path_segments();
+		$prop->{filename} = uri_unescape($path_seg[-1]);
+
+		my (undef, $tmp_fn) = tempfile( OPEN => 0 );
+		my $browser = $self->{_mech}->get($prop->{href}, ':content_file' => $tmp_fn);
+		while( $browser->{currentState} != PERSIST_STATE_FINISHED ) {
+			# TODO: identify download failure
+			sleep 1;
+		}
+		my $content = read_file( $tmp_fn );
+		my $response = HTTP::Response->new(200, undef, undef, $content);
+		$response->content( $content );
+		unlink $tmp_fn;
+		if( $response->is_success ) {
+			$prop->{response} = $response;
+		} else {
+			$prop->{response} = undef;
+		}
 		push @$subitems, $prop;
 	}
 	return $subitems;
