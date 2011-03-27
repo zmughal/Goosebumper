@@ -1,0 +1,15 @@
+sites:
+  UH::EgrBlackboard:
+    username: user
+    password: password
+  UH::BlackboardVista:
+    username: user
+    password: password
+  UH::VNet:
+    username: user password
+    password: password
+
+download_directory: /path/to/download_directory
+
+# Uncomment to turn on debugging. A log is kept in the download_directory
+#debug: 1

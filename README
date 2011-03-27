@@ -1,0 +1,7 @@
+To use this tool:
+
+1) Copy and edit the configuration in `doc/example_config.yml` to
+   `~/.goosebumper/config.yml`.
+2) Run the file in `bin/goosebumper.pl` to start.
+
+vim: ft=markdown
