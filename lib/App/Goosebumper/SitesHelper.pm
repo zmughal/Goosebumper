@@ -200,6 +200,7 @@ sub _download_cache_h {
 							# store the filename
 							$file->{filename} = $fname;
 						}
+						next unless $fname;	# still no filename, so it is not a file
 
 						if ( $response->content_type ) {
 							$file->{header}{'Content-Type'} = $response->content_type;

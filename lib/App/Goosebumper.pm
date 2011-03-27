@@ -16,17 +16,17 @@ use constant CONFIG_DIR => "$ENV{HOME}/.goosebumper";
 
 sub run {
 	my $config_file = File::Spec->catfile(CONFIG_DIR,'config.yml');
+	my $error_file = File::Spec->catfile(CONFIG_DIR, 'error_log');
 	my $hash_config = LoadFile($config_file);
 
 	if ($hash_config->{debug}) {
-		my $error_file = File::Spec->catfile(CONFIG_DIR, 'error_log');
 		Log::Log4perl->easy_init(
 		        { file  => ">> $error_file", level => $ERROR, },
 		        { file  => "STDERR", level => $DEBUG, }
 		);
 	} else {
 		Log::Log4perl->easy_init(
-		        { file  => ">> error_log", level => $OFF, },
+		        { file  => ">> $error_file", level => $OFF, },
 		        { file  => "STDERR", level => $OFF, }
 		);
 	}

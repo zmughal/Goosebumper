@@ -86,13 +86,13 @@ sub _visit_courses {
 
 	my $course_list = $mech->base;
 	for my $course (keys %course_h) {
+		# $course is an href
 		my $course_name = $course_h{$course}->[1]; # name is in second list
 		$course_name =~ s/(.+?):.*/$1/;
 		my $course_link_text = $course_h{$course}->[0];
-		$mech->follow_link( text => $course_link_text );
+		$mech->get( $course );
 		sleep 1;	# allow to load
 		$self->_process_course($course_name);
-		$mech->get($course_list);	# go back to list
 	}
 
 
@@ -166,20 +166,26 @@ sub _process_item {
 		my @path_seg = $href->path_segments();
 		$prop->{filename} = uri_unescape($path_seg[-1]);
 
-		my (undef, $tmp_fn) = tempfile( OPEN => 0 );
-		my $browser = $self->{_mech}->get($prop->{href}, ':content_file' => $tmp_fn);
-		while( $browser->{currentState} != PERSIST_STATE_FINISHED ) {
-			# TODO: identify download failure
-			sleep 1;
-		}
-		my $content = read_file( $tmp_fn );
-		my $response = HTTP::Response->new(200, undef, undef, $content);
-		$response->content( $content );
-		unlink $tmp_fn;
-		if( $response->is_success ) {
-			$prop->{response} = $response;
+		unless( $prop->{filename} ) {
+			# not a file, but a URI
+			$prop->{filename} = $prop->{'sub-item label'};
+			$prop->{response} = HTTP::Response->new(200, undef, undef, "$href\n");
 		} else {
-			$prop->{response} = undef;
+			my (undef, $tmp_fn) = tempfile( OPEN => 0 );
+			my $browser = $self->{_mech}->get($prop->{href}, ':content_file' => $tmp_fn);
+			while( $browser->{currentState} != PERSIST_STATE_FINISHED ) {
+				# TODO: identify download failure
+				sleep 1;
+			}
+			my $content = read_file( $tmp_fn );
+			my $response = HTTP::Response->new(200, undef, undef, $content);
+			$response->content( $content );
+			unlink $tmp_fn;
+			if( $response->is_success ) {
+				$prop->{response} = $response;
+			} else {
+				$prop->{response} = undef;
+			}
 		}
 		push @$subitems, $prop;
 	}
