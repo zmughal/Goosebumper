@@ -6,7 +6,7 @@ sites:
     username: user
     password: password
   UH::VNet:
-    username: user password
+    username: user
     password: password
 
 download_directory: /path/to/download_directory
