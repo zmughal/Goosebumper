@@ -180,6 +180,7 @@ sub _process_item {
 			my $content = read_file( $tmp_fn );
 			my $response = HTTP::Response->new(200, undef, undef, $content);
 			$response->content( $content );
+			$response->date(time);	# set date to now
 			unlink $tmp_fn;
 			if( $response->is_success ) {
 				$prop->{response} = $response;
