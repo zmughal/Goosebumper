@@ -3,11 +3,6 @@ package App::Goosebumper::SitesHelper;
 use strict;
 use warnings;
 
-#require Exporter;
-#our @ISA = qw(Exporter);
-#our @EXPORT = qw(start_screeching strip_sites start_firefox read_cache
-#        write_cache get_save_path get_file_list_path get_save_path find_file);
-
 use YAML qw/LoadFile DumpFile/;
 use Log::Log4perl qw(:easy);
 
@@ -66,6 +61,7 @@ sub start_firefox {
 		activate => 1,
 		autoclose => 0
 	);
+	sleep 5;
 
 	my $prefs = $mech->repl->expr(<<'JS');
 	Components.classes["@mozilla.org/preferences-service;1"]
