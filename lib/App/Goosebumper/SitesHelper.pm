@@ -61,7 +61,7 @@ sub start_firefox {
 		activate => 1,
 		autoclose => 0
 	);
-	sleep 5;
+	sleep 10;
 
 	my $prefs = $mech->repl->expr(<<'JS');
 	Components.classes["@mozilla.org/preferences-service;1"]
