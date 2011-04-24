@@ -44,7 +44,10 @@ sub screech {
 
 	DEBUG "Getting cookies";
 	my $cookies = $mech->cookies();
-	$self->{down_mech} = WWW::Mechanize ->new( cookie_jar => $cookies );
+	# Transfer the cookies
+	# Turn of host verification for SSL
+	$self->{down_mech} = WWW::Mechanize ->new( cookie_jar => $cookies ,
+		ssl_opts => { verify_hostname => 0 });
 
 	my $files = $self->_visit_courses();
 	print Dumper $self->{cache};
@@ -145,7 +148,13 @@ sub _recurse_dirstruct_h {
 						DEBUG "Adding file $name";
 					}
 			} else {
-				$mech->follow_link( { xpath => "//a[text() = '$name']", synchronize =>  0 }  ); # open pop-over
+				eval {
+					$mech->follow_link( { xpath => "//a[contains(normalize-space(.),'$name')]", synchronize => 0 } ); # open pop-over
+				};
+				if($@) {
+					DEBUG "File '$name' not found: $@\n";
+					next;
+				}
 
 				sleep 2;
 				DEBUG "Trying to find movie_player href";
