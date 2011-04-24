@@ -105,8 +105,8 @@ sub _process_course {
 	DEBUG "Processing course $course_name";
 
 	my $course_home = $mech->base;
-	my @pages = ( 'Course Information', 'Course Documents', 'Assignments',
-		'Course Documents'); #'Staff Information'
+	my @pages = ( 'Course Information', 'Course Documents', 'Assignments',);
+			#'Staff Information'
 	my $files = $self->{cache}{content}{courses}{$course_name}{files} // [];
 	for my $page (@pages) {
 		DEBUG "Looking at page $page";
