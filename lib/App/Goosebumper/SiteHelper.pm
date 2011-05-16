@@ -1,4 +1,4 @@
-package App::Goosebumper::SitesHelper;
+package App::Goosebumper::SiteHelper;
 
 use strict;
 use warnings;
@@ -20,7 +20,7 @@ use Carp;
 use constant CACHEDIR => '.gbumper';
 
 # NOTE this depends on the namespace
-use constant SITES_PACKAGE => 'App::Goosebumper::Sites::';
+use constant SITE_PACKAGE => 'App::Goosebumper::Site::';
 
 sub new {
 	my ($class, $config) = @_;
@@ -37,8 +37,8 @@ sub start_screeching {
 	my $toplevel = $self->{toplevel};
 	DEBUG "Toplevel directory \"$toplevel\"";
 	make_path($toplevel);
-	for my $site (keys %{$self->{config}{sites}}) {
-		my $plugin = SITES_PACKAGE.$site;
+	for my $site (keys %{$self->{config}{site}}) {
+		my $plugin = SITE_PACKAGE.$site;
 		DEBUG "Loading plugin: $plugin";
 		load $plugin;
 		$plugin->new($self)->screech();
@@ -46,11 +46,11 @@ sub start_screeching {
 	$self->run_exit_handlers();
 }
 
-sub strip_sites {
+sub strip_site {
 	my $self = shift;
 	my $package_name = shift;
-	my $sites_prefix = SITES_PACKAGE;
-	$package_name =~ s/$sites_prefix//;
+	my $site_prefix = SITE_PACKAGE;
+	$package_name =~ s/$site_prefix//;
 	return $package_name;
 }
 
@@ -84,7 +84,7 @@ JS
 sub credentials {
 	my $self = shift;
 	my $site_name = shift;
-	return $self->{config}{sites}{$site_name};
+	return $self->{config}{site}{$site_name};
 }
 
 sub read_cache {

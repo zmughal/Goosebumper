@@ -1,4 +1,4 @@
-sites:
+site:
   UH::EgrBlackboard:
     username: user
     password: password

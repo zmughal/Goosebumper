@@ -10,7 +10,7 @@ use File::Path qw/make_path/;
 use File::Spec;
 use Data::Dumper;
 use Log::Log4perl qw(:easy);
-use App::Goosebumper::SitesHelper;
+use App::Goosebumper::SiteHelper;
 
 use constant CONFIG_DIR => "$ENV{HOME}/.goosebumper";
 
@@ -32,7 +32,7 @@ sub run {
 	}
 
 	DEBUG "Loaded configuration: $config_file";
-	App::Goosebumper::SitesHelper->new($hash_config)->start_screeching();
+	App::Goosebumper::SiteHelper->new($hash_config)->start_screeching();
 }
 
 1;

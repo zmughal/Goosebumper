@@ -1,9 +1,9 @@
-package App::Goosebumper::Sites::UH::EgrBlackboard;
+package App::Goosebumper::Site::UH::EgrBlackboard;
 
 use strict;
 use warnings;
-use App::Goosebumper::Sites;
-use App::Goosebumper::SitesHelper;
+use App::Goosebumper::Site;
+use App::Goosebumper::SiteHelper;
 
 use Log::Log4perl qw(:easy);
 
@@ -24,24 +24,24 @@ use constant PERSIST_STATE_FINISHED => 3;
 my $url = "http://blackboard.egr.uh.edu/";
 
 sub new {
-	my ($class, $sites_helper) = @_;
+	my ($class, $site_helper) = @_;
 	ref($class) and croak "class name needed";
 
 	my $self = {
-		_SitesHelper => $sites_helper,
-		site_name => $sites_helper->strip_sites(__PACKAGE__)
+		_SiteHelper => $site_helper,
+		site_name => $site_helper->strip_site(__PACKAGE__)
 	};
-	$self->{cache} = $sites_helper->read_cache($self->{site_name});
+	$self->{cache} = $site_helper->read_cache($self->{site_name});
 	bless $self, $class;
 }
 
 sub screech {
 	my $self = shift;
-	my $sites_helper = $self->{_SitesHelper};
+	my $site_helper = $self->{_SiteHelper};
 	my $site_name = $self->{site_name};
 	DEBUG "Entering $site_name";
 
-	my $mech = $sites_helper->start_firefox();
+	my $mech = $site_helper->start_firefox();
 	$self->{_mech} = $mech;
 
 	$mech->get( $url );
@@ -49,17 +49,17 @@ sub screech {
 	$self->_login();
 
 	$self->_visit_courses();
-	$sites_helper->download_cache($self);
-	$sites_helper->write_cache($self->{cache});
+	$site_helper->download_cache($self);
+	$site_helper->write_cache($self->{cache});
 }
 
 sub _login {
 	my $self = shift;
-	my $sites_helper = $self->{_SitesHelper};
+	my $site_helper = $self->{_SiteHelper};
 	my $site_name = $self->{site_name};
 	my $mech = $self->{_mech};
 
-	my $cred = $sites_helper->{config}{sites}{$site_name};
+	my $cred = $site_helper->{config}{site}{$site_name};
 	#{ local $Data::Dumper::Indent = 0; local $Data::Dumper::Terse = 1;
 	#DEBUG "We have the credentials ", Dumper $cred; }
 
