@@ -3,7 +3,7 @@ package App::Goosebumper::SiteHelper;
 use strict;
 use warnings;
 
-use YAML qw/LoadFile DumpFile/;
+use YAML qw/LoadFile Dump/;
 use Log::Log4perl qw(:easy);
 
 use WWW::Mechanize::Firefox;
@@ -111,13 +111,9 @@ sub read_cache {
 sub write_cache {
 	my $self = shift;
 	my $cache = shift;
-	my $ext = '';
-	unless( flock( $cache->{fh} , LOCK_UN ) ) {
-		warn "Cannot unlock cache, writing to file with .err extension - $!\n"; # unlock
-		$ext = ".err";
-	}
-	# write anyway to save state
-	DumpFile($cache->{file}.$ext, $cache->{content});
+	my $fh = $cache->{fh};
+	print $fh Dump($cache->{content});
+	close $fh;
 	return;
 }
 
