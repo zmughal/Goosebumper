@@ -89,6 +89,7 @@ sub _visit_courses {
 		# $course is an href
 		my $course_name = $course_h{$course}->[1]; # name is in second list
 		$course_name =~ s/(.+?):.*/$1/;
+		$course_name =~ s,/,__,g;
 		my $course_link_text = $course_h{$course}->[0];
 		$mech->get( $course );
 		sleep 1;	# allow to load

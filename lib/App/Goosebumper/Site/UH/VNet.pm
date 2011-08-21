@@ -84,6 +84,7 @@ sub _visit_courses {
 	for my $course (keys %course_h) {
 		my $course_name = $course_h{$course};
 		$course_name =~ s/(.+?):.*/$1/;
+		$course_name =~ s,/,__,g;
 		$mech->get($course);
 		sleep 3;
 		$self->_process_course($course_name);
