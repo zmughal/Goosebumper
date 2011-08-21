@@ -11,6 +11,7 @@ use Data::Dumper;
 use Carp;
 
 use HTML::TreeBuilder;
+use HTML::Entities;
 use URI::Escape;
 
 use 5.010;
@@ -85,6 +86,7 @@ sub _visit_courses {
 		my $course_name = $course_h{$course};
 		$course_name =~ s/(.+?):.*/$1/;
 		$course_name =~ s,/,__,g;
+		decode_entities($course_name);
 		$mech->get($course);
 		sleep 3;
 		$self->_process_course($course_name);

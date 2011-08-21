@@ -13,6 +13,7 @@ use HTML::TreeBuilder;
 use Data::Dumper;
 use Carp;
 
+use HTML::Entities;
 use URI::WithBase;
 use URI::Escape;
 use File::Temp qw/ tempfile /;
@@ -90,6 +91,7 @@ sub _visit_courses {
 		my $course_name = $course_h{$course}->[1]; # name is in second list
 		$course_name =~ s/(.+?):.*/$1/;
 		$course_name =~ s,/,__,g;
+		decode_entities($course_name);
 		my $course_link_text = $course_h{$course}->[0];
 		$mech->get( $course );
 		sleep 1;	# allow to load
