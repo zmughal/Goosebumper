@@ -7,6 +7,15 @@ Log::Log4perl
 WWW::Mechanize
 	apt-get install libwww-mechanize-perl
 
+HTML::Format
+	apt-get install libhtml-format-perl
+
+HTML::TreeBuilder::XPath
+	apt-get install libhtml-treebuilder-xpath-perl
+
+WWW::Scripter
+WWW::Scripter::Plugin::JavaScript
+
 WWW::Mechanize::Firefox
 	Mozilla Firefox
 		apt-get install iceweasel
