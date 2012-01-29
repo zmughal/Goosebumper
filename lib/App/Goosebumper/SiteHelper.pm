@@ -6,7 +6,6 @@ use warnings;
 use YAML qw/LoadFile Dump/;
 use Log::Log4perl qw(:easy);
 
-use WWW::Mechanize::Firefox;
 use WWW::Mechanize;
 
 use File::Spec;
@@ -56,6 +55,8 @@ sub strip_site {
 
 sub start_firefox {
 	my ($self) = @_;
+	DEBUG "Loading WWW::Mechanize::Firefox";
+	load WWW::Mechanize::Firefox;
 	my $mech = WWW::Mechanize::Firefox->new(
 		launch => ['firefox','-no-remote','-P','scraper'],
 		activate => 1,

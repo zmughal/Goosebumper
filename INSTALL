@@ -17,6 +17,7 @@ WWW::Scripter
 WWW::Scripter::Plugin::JavaScript
 
 WWW::Mechanize::Firefox
+	not a strict requirement: currently loaded as needed for UH::VNet
 	Mozilla Firefox
 		apt-get install iceweasel
 	MozRepl plugin for Firefox
