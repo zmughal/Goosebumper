@@ -54,6 +54,7 @@ sub screech {
 	$self->_login();
 
 	$self->_visit_courses();
+	$self->{down_mech} = $self->{_mech};
 	$site_helper->download_cache($self);
 	$site_helper->write_cache($self->{cache});
 }

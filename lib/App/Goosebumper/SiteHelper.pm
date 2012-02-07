@@ -175,8 +175,14 @@ sub _download_cache_h {
 						my $down_mech = $site->{down_mech};
 						my $href = $file->{href};
 						DEBUG "Attempting to download: $href";
-						$response = $down_mech->get($href);
-						$worked = $down_mech->success();
+						eval {
+							$response = $down_mech->get($href);
+						};
+						if($@) {
+							$worked = 0;
+						} else {
+							$worked = $down_mech->success();
+						}
 					} else {
 						$response = $file->{response};
 						delete $file->{response};
@@ -206,6 +212,13 @@ sub _download_cache_h {
 							$file->{header}{'Last-Modified'} = $response->last_modified();
 						}
 						my $save_path = File::Spec->catfile($top, $fname);
+						if( -e $save_path ) {
+							# conflicting path!
+							$fname = $file->{label}.$fname;	# TODO: check for safe characters
+							$save_path = File::Spec->catfile($top, $fname);
+							# this could still be in conflict, but in most cases the
+							# label + filename should disambiguate
+						}
 						eval {
 							open( my $fh, '>', $save_path ) or die( "Unable to create $save_path: $!" );
 							binmode $fh unless ($file->{header}{'Content-Type'} // '' ) =~ m{^text/};
