@@ -21,7 +21,7 @@ sub run {
 
 	if ($hash_config->{debug}) {
 		Log::Log4perl->easy_init(
-		        { file  => ">> $error_file", level => $ERROR, },
+		        { file  => ">> $error_file", level => $ERROR, utf8 => 1 },
 		        { file  => "STDERR", level => $DEBUG, }
 		);
 	} else {
