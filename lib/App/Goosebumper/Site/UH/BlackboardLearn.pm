@@ -13,7 +13,7 @@ use utf8::all;
 use Carp;
 
 # <https://elearning.uh.edu/> redirects to $url using JS
-my $url = "https://elearning.uh.edu/webapps/portal/execute/defaultTab";
+my $course_top_url = "https://elearning.uh.edu/webapps/portal/execute/defaultTab";
 
 sub new {
 	my ($class, $site_helper) = @_;
@@ -33,28 +33,35 @@ sub screech {
 	my $site_name = $self->{site_name};
 	DEBUG "Entering $site_name";
 
-	my $mech = $self->{_mech} = $site_helper->start_firefox;
-
-	$mech->get( $url );
+	my $mech = $self->{_mech} = WWW::Mechanize->new;
+	#my $mech = $self->{_mech} = $site_helper->start_firefox;
 
 	$self->_login();
 
 	$self->_visit_courses;
 }
 
-sub _visit_courses {
-	my $self = shift;
-	my $mech = $self->{_mech};
+sub _check_content_for_login_form {
+	my ($self, $content) = @_;
+	my $tree = HTML::TreeBuilder::XPath->new_from_content($content);
+	my $login_input_xpath = '//input[@name="user_id"]'; # needed to login
+	return !!( $tree->findnodes( $login_input_xpath ) );
+}
+
+sub _extract_course_info {
+	my ($self) = @_;
+	my $response = $self->_get_course_listing_data;
+	my $courselist_content = $response->decoded_content;
 
 	# All course nodes are inside a <ul>
 	#     <ul class="portletList-img courseListing coursefakeclass ">
 	#     </ul>
-	my $courselist_tree = HTML::TreeBuilder::XPath->new_from_content($mech->content);
+	my $courselist_tree = HTML::TreeBuilder::XPath->new_from_content($courselist_content);
 	my $course_info;
 	my @course_nodes = $courselist_tree->findnodes('//ul[contains(@class,"courseListing")]/li/a');
 	for my $course_node (@course_nodes) {
 		my $href = $course_node->attr('href');
-		my $abs_href = URI->new_abs( $href, $mech->base );
+		my $abs_href = URI->new_abs( $href, $response->base );
 		my $text = $course_node->as_text;
 
 		my $cur_course = {};
@@ -72,7 +79,33 @@ sub _visit_courses {
 
 		$course_info->{$abs_href} = $cur_course;
 	}
+
+	$course_info;
+}
+
+sub _visit_courses {
+	my $self = shift;
+	my $mech = $self->{_mech};
+
+	my $course_info = $self->_extract_course_info;
+
 	require Carp::REPL; Carp::REPL->import('repl'); repl();
+}
+
+sub _get_course_listing_data {
+	my ($self) = @_;
+	my $mech = $self->{_mech};
+
+	$mech->post(
+		'https://elearning.uh.edu/webapps/portal/execute/tabs/tabAction',
+		{
+			action => 'refreshAjaxModule',
+			modId => '_25_1',
+			tabId => '_27_1',
+			tab_tab_group_id => '_42_1',
+		},
+		'X-Requested-With' => 'XMLHttpRequest',
+	);
 }
 
 
@@ -84,22 +117,9 @@ sub _login {
 
 	my $cred = $site_helper->{config}{site}{$site_name};
 
-#curl 'https://elearning.uh.edu/webapps/portal/execute/tabs/tabAction'
-	#-H 'Host: elearning.uh.edu' -H 'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:38.0) Gecko/20100101 Firefox/38.0 Iceweasel/38.1.0'
-	#-H 'Accept: text/javascript, text/html, application/xml, text/xml, */*'
-	#-H 'Accept-Language: en-US,en;q=0.5' --compressed
-	#-H 'X-Requested-With: XMLHttpRequest'
-	#-H 'X-Prototype-Version: 1.7'
-	#-H 'Content-Type: application/x-www-form-urlencoded; charset=UTF-8'
-	#-H 'Referer: https://elearning.uh.edu/webapps/portal/execute/tabs/tabAction?tab_tab_group_id=_42_1'
-	#-H 'Cookie: JSESSIONID=1F14C1D728E6F0351B0FD77A506AF97E; WT_FPC=id=129.7.17.210-429430192.30138273:lv=1313766009687:ss=1313765734969; NSC_fmfbsojoh.vi.fev-wt-iuuqt=ffffffffaf1d26b845525d5f4f58455e445a4a4229a1; _ga=GA1.2.130375019.1442506897; JSESSIONID=5B31C74E1DB6CC18246CFA66E75EB4BE; session_id=E4807C9B6CCF4DF81EF641784FC50189; s_session_id=3A27517595A8B79567C7D2D69F6A0DC5; web_client_cache_guid=b4d7780d-917f-4126-a2ca-52318b30cf31'
-	#-H 'Connection: keep-alive'
-	#-H 'Pragma: no-cache'
-	#-H 'Cache-Control: no-cache'
-	#--data 'action=refreshAjaxModule&modId=_25_1&tabId=_27_1&tab_tab_group_id=_42_1'
-	#https://elearning.uh.edu/webapps/portal/execute/tabs/tabAction?tab_tab_group_id=_42_1
-	my $login_input_xpath='//input[@name="user_id"]'; # needed to login
-	if(eval { $mech->xpath($login_input_xpath, any => 1) } ) {
+	$mech->get( $course_top_url );
+
+	if( $self->_check_content_for_login_form( $mech->content ) ) {
 		$mech->submit_form( with_fields => {
 			user_id => $cred->{username},
 			password => $cred->{password},
