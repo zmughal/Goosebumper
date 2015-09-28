@@ -66,6 +66,7 @@ sub _extract_course_info {
 
 		my $cur_course = {};
 		$cur_course->{text} = $text;
+		$cur_course->{href} = $abs_href;
 
 		# courses are in the form:
 		#
@@ -76,6 +77,12 @@ sub _extract_course_info {
 		($cur_course->{course_id}, $cur_course->{course_name}) =
 			$text =~ /^[^:]+?: \w+-\w+-(?<course_id>\w+)-(?<course_name>.*)$/;
 
+		$cur_course->{course_dirname} =
+			$cur_course->{course_id}
+			=~ s/
+				(?<dept>[A-Z]+)
+				(?<course_number>\d+)
+			/$+{dept}_$+{course_number}/xr;
 
 		$course_info->{$abs_href} = $cur_course;
 	}
