@@ -96,7 +96,9 @@ sub _visit_courses {
 
 	my $course_info = $self->_extract_course_info;
 
-	require Carp::REPL; Carp::REPL->import('repl'); repl();
+	for my $course (keys %$course_info) {
+		$self->_process_course( $course_info->{$course} )
+	}
 }
 
 sub _get_course_listing_data {
