@@ -9,6 +9,8 @@ use WWW::Mechanize::Firefox;
 use HTML::TreeBuilder::XPath;
 use Log::Log4perl qw(:easy);
 use HTML::FormatText;
+use Try::Tiny;
+use Path::Tiny;
 use utf8::all;
 
 use Carp;
@@ -24,6 +26,7 @@ sub new {
 		_SiteHelper => $site_helper,
 		site_name => $site_helper->strip_site(__PACKAGE__),
 	};
+	$self->{cache} = $site_helper->read_cache($self->{site_name});
 	bless $self, $class;
 }
 
@@ -110,17 +113,106 @@ sub _process_course {
 
 	my $course_index = $mech->get($course->{href});
 
+	my @skip_pages = ("Discussions", "Messages", "Tools", "Calendar", "Course Calendar", "My Grades", "Groups");
+	my %skip_pages;
+	@skip_pages{@skip_pages} = (1)x@skip_pages;
+
 	my $tree = HTML::TreeBuilder::XPath->new_from_content( $course_index->decoded_content );
-	my @pages = map { $_->as_text } $tree->findnodes('//div[@id = "navigationPane"]//a[@target="_self"]');
-	use DDP; p @pages;
+	my $fmt = HTML::FormatText->new;
 
-	#my $content_form = ( $tree->findnodes('//form[@name="contentForm"]') )[0];
-	my $content_list = ( $tree->findnodes('//ul[@id="content_listContainer"]') )[0];
-	#use DDP ; p $content_list;
-	my $content_list_text = HTML::FormatText->new->format($content_list);
-	use DDP; p $content_list_text;
+	# find the list of pages on the left-hand navbar (e.g. Announcements,
+	# Course Information, Course Content, Course Calendar, Messages).
+	my @page_nodes = $tree->findnodes('//div[@id = "navigationPane"]//a[@target="_self"]');
+	for my $page_node ( @page_nodes ) {
+		my $page_name = $page_node->as_trimmed_text;
+		my $page_uri = $page_node->attr('href');
 
-	require Carp::REPL; Carp::REPL->import('repl'); repl();#DEBUG
+		if( exists $skip_pages{$page_name} ) {
+			DEBUG "Skipping $page_name.";
+			next;
+		}
+
+		# download the page
+		my $page_response = $mech->get( $page_uri );
+
+		my $page_tree = HTML::TreeBuilder::XPath->new_from_content( $page_response->decoded_content );
+
+		my @page_path_breadcrumbs = $page_tree->findnodes('//div[@id="breadcrumbs"]//div[contains(@class,"path")]//ol/li');
+		# we don't need the first item that is the course name
+		shift @page_path_breadcrumbs if $page_path_breadcrumbs[0]->attr('class') =~ /root/;
+		my @page_path = map { $_->as_trimmed_text } @page_path_breadcrumbs;
+		my $page_path_dir = join '/', @page_path;
+
+		my @lists;
+		push @lists, $page_tree->findnodes('//ul[contains(@class,"contentList")]');
+		push @lists, $page_tree->findnodes('//ul[contains(@class,"announcementList")]');
+
+		my @vtbe = $page_tree->findnodes('//div[contains(@class,"vtbegenerated")]');
+
+		if( @lists ) {
+			DEBUG "Found @{[ scalar @lists ]} lists on $page_name";
+			#use DDP; p @lists;
+			for my $list (@lists) {
+				my @list_items = $list->findnodes('./li');
+				DEBUG "List @{[ $list->attr('class') ]} contains @{[ scalar @list_items ]} items on $page_name under $page_path_dir";
+				for my $item (@list_items) {
+					my @links = $item->findnodes('.//a');
+					my %links_href = map { ( $_->attr('href') => $_->as_trimmed_text ) } @links;
+					#use DDP; p %links_href;#DEBUG
+					for my $link (@links) {
+						my $link_href = $link->attr('href');
+						my $link_href_abs = URI->new_abs( $link->attr('href'), $mech->base );
+						my $link_text = $fmt->format($link);
+						if( $link_href =~ m|listContent\.jsp| ) {
+							# sub-page
+							push @page_nodes, $link;
+						} elsif( $link_href =~ m|^/bbcswebdav| ) {
+							# file to download
+							DEBUG "Will need to download: $link_text to $page_path_dir/$link_text";
+							my $file_head = $mech->head( $link_href_abs );
+							my @path = (@page_path, $file_head->filename);
+							my $save_path = path( $self->{_SiteHelper}->_get_save_path( $self->{site_name}, $course->{course_dirname}, \@path) );
+							if( -r $save_path ) {
+								DEBUG "Already downloaded $link_text to $save_path from before.";
+							} else {
+								DEBUG "Saving to $save_path";
+							}
+							my $file_get = $mech->get( $link_href_abs );
+							try {
+								$save_path->parent->mkpath;
+								open( my $fh, '>', $save_path ) or die( "Unable to create $save_path: $!" );
+								binmode $fh unless ($file_get->content_type // '' ) =~ m{^text/};
+								print {$fh} $file_get->content or die( "Unable to write to $save_path: $!" );
+								close $fh or die( "Unable to close $save_path: $!" );
+							} catch {
+								warn $_;
+							};
+						}
+					}
+				}
+			}
+		} elsif( @vtbe ) {
+			DEBUG "Found @{[ scalar @vtbe ]} vtbe paragraphs on $page_name under $page_path_dir";
+		} else {
+			DEBUG "No lists found on $page_name under $page_path_dir";
+		}
+
+	}
+	#use DDP; p @pages;
+
+
+
+
+	#my @div_info;
+	#for my $div (@divs) {
+		#push @div_info, {
+			#node => $div,
+			#( id => $div->attr('id') )x!!( $div->attr('id')  ),
+			#( class => $div->attr('class') )x!!( $div->attr('class')  ),
+			#text => $fmt->format($div),
+		#};
+	#}
+
 }
 
 sub _get_course_listing_data {
