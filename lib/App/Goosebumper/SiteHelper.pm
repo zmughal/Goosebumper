@@ -135,9 +135,9 @@ sub get_file_list_path {
 sub _get_save_path {
 	my ($self, $site_name, $course, $path) = @_;
 	my $toplevel = $self->{toplevel};
-	my $sfn = _sitename_fname($site_name);
-	my $cfn = _course_fname($course);
-	return File::Spec->($toplevel, $cfn, $sfn, @$path);
+	my $sfn = $self->_sitename_fname($site_name);
+	my $cfn = $self->_course_fname($course);
+	return File::Spec->catfile($toplevel, $cfn, $sfn, @$path);
 }
 
 sub download_cache {
