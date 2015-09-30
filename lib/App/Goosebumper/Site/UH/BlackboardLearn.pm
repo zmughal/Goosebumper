@@ -8,6 +8,7 @@ use App::Goosebumper::SiteHelper;
 use WWW::Mechanize::Firefox;
 use HTML::TreeBuilder::XPath;
 use Log::Log4perl qw(:easy);
+use HTML::FormatText;
 use utf8::all;
 
 use Carp;
@@ -99,6 +100,27 @@ sub _visit_courses {
 	for my $course (keys %$course_info) {
 		$self->_process_course( $course_info->{$course} )
 	}
+
+}
+
+sub _process_course {
+	my ($self, $course) = @_;
+	my $mech = $self->{_mech};
+	DEBUG "Processing course $course->{course_name}";
+
+	my $course_index = $mech->get($course->{href});
+
+	my $tree = HTML::TreeBuilder::XPath->new_from_content( $course_index->decoded_content );
+	my @pages = map { $_->as_text } $tree->findnodes('//div[@id = "navigationPane"]//a[@target="_self"]');
+	use DDP; p @pages;
+
+	#my $content_form = ( $tree->findnodes('//form[@name="contentForm"]') )[0];
+	my $content_list = ( $tree->findnodes('//ul[@id="content_listContainer"]') )[0];
+	#use DDP ; p $content_list;
+	my $content_list_text = HTML::FormatText->new->format($content_list);
+	use DDP; p $content_list_text;
+
+	require Carp::REPL; Carp::REPL->import('repl'); repl();#DEBUG
 }
 
 sub _get_course_listing_data {
